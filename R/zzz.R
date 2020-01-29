@@ -1,0 +1,10 @@
+globalVariables(
+  c(
+    "diveid",
+    "dt",
+    "ibi",
+    "is_breath",
+    "last_ibi",
+    "p"
+  )
+)
