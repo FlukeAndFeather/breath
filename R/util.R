@@ -4,12 +4,12 @@
 #' @param tz Time zone (character)
 #'
 #' @return POSIXct vector
+#' @export
 #'
 #' @examples
 #'
 #' # "2020-01-27 19:12:00 UTC"
 #' dn_to_posix(737817.8)
-#' @export
 dn_to_posix <- function(dn, tz = "UTC") {
   as.POSIXct((dn - 719529) * 86400, origin = "1970-01-01", tz = tz)
 }

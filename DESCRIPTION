@@ -18,7 +18,8 @@ Imports:
     magrittr,
     RcppRoll,
     RNetCDF,
-    tidyr
+    tidyr,
+    lubridate
 Suggests: 
     testthat (>= 2.1.0)
 Encoding: UTF-8

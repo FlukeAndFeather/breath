@@ -1,3 +1,12 @@
+#' Find breaths and dives in depth data
+#'
+#' @param x a depth/time object (see [read_depth()])
+#' @param interval typical interval between breaths in seconds (e.g. 10 for blue whales)
+#' @param surface minimum depth for a breath
+#' @param ibi_thr inter-breath interval threshold for a dive
+#'
+#' @return a depth/time object with identified breaths and dives
+#' @export
 find_breaths_dives <- function(x, interval, surface, ibi_thr) {
   # Find breaths
   breaths <- x$data %>%

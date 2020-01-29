@@ -3,6 +3,8 @@
 export("%>%")
 export(decimate)
 export(dn_to_posix)
+export(find_breaths_dives)
+export(plot_dive_event)
 export(read_depth)
 export(smooth_p)
 importFrom(magrittr,"%>%")
