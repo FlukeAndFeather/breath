@@ -28,8 +28,13 @@ find_breaths_dives <- function(x, interval, surface, ibi_thr) {
                                dt,
                                "constant",
                                yleft = 0)$y,
-      diveid = dplyr::lag(cumsum(ibi >= ibi_thr), default = 0),
-      diveid = ifelse(ibi > 0 | last_ibi < ibi_thr, -diveid, diveid),
+      diveid0 = dplyr::lag(cumsum(ibi >= ibi_thr), default = 0),
+      diveid = dplyr::case_when(
+        last_ibi >= ibi_thr & !is_breath ~ diveid0,
+        last_ibi <  ibi_thr & !is_breath ~ -diveid0,
+        is_breath                        ~ -diveid0,
+        TRUE                             ~ 0
+      ),
       ibi = ifelse(ibi == 0, NA_real_, ibi)
     ) %>%
     dplyr::select(dt, p, diveid, is_breath, ibi)

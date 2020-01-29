@@ -8,7 +8,8 @@
 #' @export
 plot_dive_event <- function(x, diveid, buffer) {
   # Filter dive and post-dive interval
-  onedive <- dplyr::filter(x$data, diveid %in% c({{ diveid }}, - {{ diveid }}))
+  dive_event <- c(diveid, -diveid)
+  onedive <- dplyr::filter(x$data, diveid %in% dive_event)
   breaths_onedive <- dplyr::filter(onedive, is_breath)
 
   # Expand limits by buffer
@@ -17,8 +18,31 @@ plot_dive_event <- function(x, diveid, buffer) {
   data <- dplyr::filter(x$data, dplyr::between(dt, lims[1], lims[2]))
 
   # Create plot
-  title <- sprintf("Dive %d, %d breaths", diveid, nrow(breaths_onedive))
+  dive_dur <- function(t) {
+    as.numeric(dplyr::last(t) - dplyr::first(t), unit = "mins")
+  }
+  dur <- onedive %>%
+    dplyr::filter(diveid == {{ diveid }}) %>%
+    dplyr::summarize(dur = dive_dur(dt)) %>%
+    dplyr::pull(dur)
+  title <- sprintf("Dive %d: %.1f min, %d breaths",
+                   diveid,
+                   dur,
+                   nrow(breaths_onedive))
+  shading <- onedive %>%
+    dplyr::filter(diveid == {{ diveid }}) %>%
+    dplyr::summarize(
+      dt_min = dplyr::first(dt),
+      dt_max = dplyr::last(dt)
+    )
   ggplot2::ggplot(data, ggplot2::aes(dt, p)) +
+    ggplot2::annotate("rect",
+                      xmin = shading$dt_min,
+                      xmax = shading$dt_max,
+                      ymin = -Inf,
+                      ymax = Inf,
+                      fill = "black",
+                      alpha = 0.2) +
     ggplot2::geom_line(size = 0.5) +
     ggplot2::geom_point(data = breaths_onedive,
                         color = "red") +
