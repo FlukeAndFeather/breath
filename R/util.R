@@ -28,3 +28,7 @@ smooth_p <- function(x, t) {
   x$data$p <- RcppRoll::roll_mean(x$data$p, n = width, fill = NA)
   x
 }
+
+count_lunges <- function(x, t) {
+  sum(x$lunge_dt >= t[1] & x$lunge_dt <= t[length(t)])
+}

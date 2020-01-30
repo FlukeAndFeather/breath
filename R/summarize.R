@@ -11,9 +11,6 @@
 #' @export
 summarize_dives <- function(x) {
   fs <- x$fs
-  count_lunges <- function(t) {
-    sum(x$lunge_dt >= t[1] & x$lunge_dt <= t[length(t)])
-  }
   x$data %>%
     # Remove invalid dives
     dplyr::filter(diveid != 0) %>%
@@ -23,6 +20,17 @@ summarize_dives <- function(x) {
       duration = fs * sum(diveid > 0),
       depth = max(p),
       n_breaths = sum(is_breath),
-      n_lunges = count_lunges(dt)
+      n_lunges = count_lunges(x, dt)
+    )
+}
+
+summarize_time <- function(x) {
+  x$data %>%
+    dplyr::mutate(hour = floor(as.numeric(dt - dt[1], unit = "hours"))) %>%
+    dplyr::group_by(hour) %>%
+    dplyr::summarize(
+      hour_start = dt[1],
+      n_breaths = sum(is_breath),
+      n_lunges = count_lunges(x, dt)
     )
 }

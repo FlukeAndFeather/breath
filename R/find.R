@@ -1,6 +1,6 @@
 #' Find breaths and dives in depth data
 #'
-#' @param x a depth/time object (see [read_depth()])
+#' @param x a depth/time object (see [read_deployment()])
 #' @param interval typical interval between breaths in seconds (e.g. 10 for blue whales)
 #' @param surface minimum depth for a breath
 #' @param ibi_thr inter-breath interval threshold for a dive

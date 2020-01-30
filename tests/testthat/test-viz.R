@@ -1,17 +1,10 @@
 skip("test manually")
 
-# Read data, smooth depth, decimate to 1 hz
-bm181021_1hz <- read_deployment(file.choose(), "US/Pacific") %>%
-  smooth_p(1) %>%
-  decimate(1)
-
-# Find breaths and dives
-bm181021_dives <- find_breaths_dives(
-  bm181021_1hz,
-  interval =  10,
-  surface = 2,
-  ibi_thr = 300
-)
-
 # Plot a dive
 plot_dive_event(bm181021_dives, 7, 20)
+
+# Fit ADL over 1 and 4 dives
+adl1 <- fit_adl(bm181021_dives)
+adl4 <- fit_adl(bm181021_dives, n_dives = 4)
+plot_adl(adl1)
+plot_adl(adl4)

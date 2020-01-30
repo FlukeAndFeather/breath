@@ -7,7 +7,7 @@
 find_breaths_dives(x, interval, surface, ibi_thr)
 }
 \arguments{
-\item{x}{a depth/time object (see \code{\link[=read_depth]{read_depth()}})}
+\item{x}{a depth/time object (see \code{\link[=read_deployment]{read_deployment()}})}
 
 \item{interval}{typical interval between breaths in seconds (e.g. 10 for blue whales)}
 

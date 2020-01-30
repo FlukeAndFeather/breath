@@ -12,12 +12,3 @@ bm181021_dives <- find_breaths_dives(
   surface = 2,
   ibi_thr = 300
 )
-
-onedive <- dplyr::filter(bm181021_dives$data, diveid %in% c(1, -1))
-breaths_onedive <- dplyr::filter(onedive, is_breath)
-ggplot2::ggplot(onedive, ggplot2::aes(dt, p)) +
-  ggplot2::geom_line(size = 0.5) +
-  ggplot2::geom_point(data = breaths_onedive,
-             color = "red") +
-  ggplot2::scale_y_reverse() +
-  ggplot2::theme_minimal()

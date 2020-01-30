@@ -21,7 +21,7 @@ plot_dive_event <- function(x, diveid, buffer) {
   lunges <- dplyr::tibble(dt = x$lunge_dt) %>%
     dplyr::filter(dt > dplyr::first(onedive$dt),
                   dt < dplyr::last(onedive$dt)) %>%
-    mutate(p = stats::approx(x$data$dt,
+    dplyr::mutate(p = stats::approx(x$data$dt,
                              x$data$p,
                              dt)$y)
 
@@ -61,4 +61,64 @@ plot_dive_event <- function(x, diveid, buffer) {
     ggplot2::scale_y_reverse("Depth (m)") +
     ggplot2::labs(title = title) +
     ggplot2::theme_minimal()
+}
+
+#' Plot an aerobic dive limit model
+#'
+#' After fitting an aerobic dive limit (ADL) model using [fit_adl()], [plot_adl()] visualizes the ADL, the quantile regressions, and their intersection.
+#'
+#' @param fitted_adl an ADL model (see [fit_adl()])
+#' @param ylim number of breaths to limit the y-axes (0-25 by default)
+#'
+#' @return a ggplot object with post-dive breath counts plotted against dive duration superimposed with the ADL and the intersecting quantile regression lines.
+#' @export
+#'
+#' @examples
+#'
+#' fit_adl(bm181021_dives) %>%
+#'   plot_adl()
+plot_adl <- function(fitted_adl, ylim = c(0, 25)) {
+  with(fitted_adl, {
+    intersection <- solve(
+      matrix(c(1, 1, -coef(rq_left)[2], -coef(rq_right)[2]), ncol = 2),
+      matrix(c(coef(rq_left)[1], coef(rq_right)[1]), ncol = 1)
+    )
+    rq_segs <- dplyr::tibble(
+      side = c("left", "right"),
+      intercept = c(coef(rq_left)[1], coef(rq_right)[1]),
+      slope = c(coef(rq_left)[2], coef(rq_right)[2]),
+      xmin = c(min(dives$duration), intersection[2]),
+      xmax = c(intersection[2], max(dives$duration)),
+      ymin = intercept + slope * xmin,
+      ymax = intercept + slope * xmax
+    )
+    ggplot2::ggplot(dives, ggplot2::aes(duration, n_breaths)) +
+      ggplot2::geom_point(color = "gray", shape = 1) +
+      ggplot2::geom_vline(xintercept = adl,
+                          linetype = "dashed",
+                          size = 1.5) +
+      ggplot2::geom_segment(ggplot2::aes(x = xmin, xend = xmax,
+                                         y = ymin, yend = ymax,
+                                         color = side),
+                            data = rq_segs,
+                            size = 1.5) +
+      ggplot2::annotate(
+        "text",
+        x = adl * 1.05,
+        y = ylim[1] + 0.8 * diff(ylim),
+        label = sprintf("ADL = %.1f min\n(over %d dives)", adl / 60, n_dives),
+        hjust = 0
+      ) +
+      ggplot2::scale_x_continuous(
+        "Duration (min)",
+        breaks = function(lim) 60 * pretty(lim / 60),
+        labels = scales::label_number(accuracy = 1, scale = 1 / 60)
+      ) +
+      ggplot2::scale_y_continuous("Count of breaths",
+                                  limits = ylim) +
+      ggplot2::scale_color_manual(values = c("orange", "purple")) +
+      ggplot2::expand_limits(x = 0, y = 0) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(legend.position = "none")
+  })
 }
