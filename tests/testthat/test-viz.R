@@ -1,7 +1,7 @@
 skip("test manually")
 
 # Read data, smooth depth, decimate to 1 hz
-bm181021_1hz <- read_depth(file.choose(), "US/Pacific") %>%
+bm181021_1hz <- read_deployment(file.choose(), "US/Pacific") %>%
   smooth_p(1) %>%
   decimate(1)
 

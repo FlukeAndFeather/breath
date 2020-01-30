@@ -2,7 +2,7 @@
 
 # Read data, smooth depth, decimate to 1 hz
 # Data courtesy James Fahlbusch
-bm181021_1hz <- read_depth(file.choose(), "US/Pacific") %>%
+bm181021_1hz <- read_deployment(file.choose(), "US/Pacific") %>%
   smooth_p(1) %>%
   decimate(1)
 # Truncate at Nov 22 11:30 (tag off)

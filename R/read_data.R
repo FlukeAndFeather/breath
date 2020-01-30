@@ -1,23 +1,31 @@
-#' Read depth/time record from ncdf file
+#' Read deployment from ncdf file
 #'
 #' @param path File path to ncdf file
 #' @param tz Time zone of deployment
 #'
-#' @return list with depth-time tibble (dt, p) and sampling rate (fs)
+#' @return list with depth-time tibble (dt, p), vector of lunge times, and
+#'   sampling rate (fs)
 #' @export
-read_depth <- function(path, tz = "UTC") {
+read_deployment <- function(path, tz = "UTC") {
   # Read data and metadata
   ncdata <- RNetCDF::open.nc(path)
   dn <- RNetCDF::var.get.nc(ncdata, "DN")
   p <- RNetCDF::var.get.nc(ncdata, "P")
+  lunges <- RNetCDF::var.get.nc(ncdata, "Lunges")
   fs <- RNetCDF::att.get.nc(ncdata, "P", "sampling_rate")
 
   # Convert DN to POSIXct
   dt <- dn_to_posix(dn, tz)
 
+  # Read lunges
+  lunge_dt <- as.POSIXct(lunges,
+                         tz = tz,
+                         origin = dt[1])
+
   # Return result
   list(
     data = dplyr::tibble(dt, p),
+    lunge_dt = lunge_dt,
     fs = fs
   )
 }
