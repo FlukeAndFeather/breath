@@ -1,0 +1,118 @@
+---
+title: "Dive identification"
+output: html_notebook
+---
+
+In this analysis, dives are defined as submerged periods separated by bouts of breathing at the surface. After identifying breaths, I fit a mixture model to the logged inter-breath intervals to come up with dive thresholds.
+
+```{r setup, message=FALSE}
+library(mixtools)
+library(tidyverse)
+```
+
+```{r load_data}
+drive_path <- "/Volumes/GoogleDrive/Shared drives/CATS/"
+find_nc <- function(id, root) {
+  dep_dir <- fs::dir_ls(
+    fs::path(drive_path, "tag_data"),
+    regexp = sprintf("%s", id)
+  )
+  if (length(dep_dir) != 1) {
+    return(NA)
+  }
+  
+  result <- fs::dir_ls(dep_dir, regexp = sprintf(".*%s.*nc$", id))
+  if (length(result) != 1) {
+    return(NA)
+  } 
+  
+  result
+}
+
+prh_guide <- c("bw", "bp", "mn", "bb") %>% 
+  map(~ readxl::read_excel("prh_guide.xlsx", sheet = .x)) %>% 
+  bind_rows() %>% 
+  mutate(
+    tz = sprintf("Etc/GMT%+d", -utc),
+    tag_on_utc = lubridate::force_tzs(tag_on, tzones = tz),
+    tag_off_utc = lubridate::force_tzs(tag_off, tzones = tz),
+    prh_path = map_chr(id, find_nc, root = drive_path)
+  ) 
+
+all_dives <- prh_guide %>% 
+  filter(!is.na(prh_path)) %>% 
+  group_by_all() %>% 
+  group_modify(function(data, keys) {
+    tryCatch({
+      deployment <- read_deployment(keys$prh_path, keys$tz) %>%
+        smooth_p(1) %>%
+        decimate(1)
+      deployment$data <- filter(
+        deployment$data, 
+        between(dt, keys$tag_on_utc, keys$tag_off_utc)
+      )
+      find_breaths_dives(
+        deployment,
+        interval =  10,
+        surface = 1,
+        ibi_thr = 60
+      )$data
+    }, error = function(e) tibble())
+  }) %>% 
+  ungroup()
+```
+
+Logged inter-breath intervals by species show a distinct bimodal distribution for bw and bp, but more continuous for bb and mn.
+```{r log_ibi}
+log_ibi <- all_dives %>% 
+  filter(is_breath) %>% 
+  group_by(id) %>% 
+  mutate(log_ibi = log(as.numeric(lead(dt) - dt, unit = "secs"))) %>% 
+  ungroup() %>% 
+  filter(!is.na(log_ibi),
+         log_ibi < log(3600))
+
+ggplot(log_ibi, aes(log_ibi)) +
+  geom_histogram(binwidth = 0.2, boundary = 0) +
+  facet_wrap(~ species, scales = "free_y") +
+  labs(x = "log[IBI (s)]",
+       y = "count") +
+  theme_minimal()
+```
+
+
+
+```{r ibi_mix}
+ibi_mix <- log_ibi %>% 
+  group_by(id) %>% 
+  group_map(~ normalmixEM(.x$log_ibi, k = 3))
+
+ibi_mix_pred <- map2_dfr(
+  ibi_mix, 
+  unique(log_ibi$species), 
+  function(mixmod, sp) {
+    expand_grid(
+      log_ibi = seq(min(mixmod$x), max(mixmod$x), length.out = 1e3),
+      i = 1:3
+    ) %>% 
+      mutate(species = sp,
+             mu = mixmod$mu[i],
+             sigma = mixmod$sigma[i],
+             lambda = mixmod$lambda[i]) %>% 
+      group_by(i) %>% 
+      mutate(density = dnorm(log_ibi, mu[1], sigma[1]) * lambda) %>% 
+      ungroup() %>% 
+      left_join(tibble(i = 1:3, dist = order(mixmod$mu)), by = "i")
+  }
+)
+
+ggplot(log_ibi, aes(log_ibi)) +
+  geom_histogram(aes(y = ..density..), binwidth = 0.2, boundary = 0) +
+  geom_line(aes(y = density, group = dist, color = factor(dist)), 
+            ibi_mix_pred) +
+  scale_color_viridis_d() +
+  facet_wrap(~ species, scales = "free_y") +
+  labs(x = "log[IBI (s)]",
+       y = "count") +
+  theme_minimal()
+```
