@@ -11,8 +11,8 @@
 #'
 #' @return the combined RMSE of the segmented regression
 combined_rmse <- function(breakpoint, data, tau = 0.05) {
-  data1 <- dplyr::filter(data, duration < breakpoint)
-  data2 <- dplyr::filter(data, duration >= breakpoint)
+  data1 <- filter(data, duration < breakpoint)
+  data2 <- filter(data, duration >= breakpoint)
   rq1 <- quantreg::rq(n_breaths ~ duration, tau = tau, data = data1)
   rq2 <- quantreg::rq(n_breaths ~ duration, tau = tau, data = data2)
   sqrt(sum(resid(rq1)^2, resid(rq2)^2) / nrow(data))
@@ -38,11 +38,11 @@ combined_rmse <- function(breakpoint, data, tau = 0.05) {
 fit_adl <- function(x, n_dives = 1, nofeeding = TRUE) {
   # Aggregate dives, possibly removing feeding
   dives <- summarize_dives(x) %>%
-    dplyr::mutate_at(
-      dplyr::vars(duration, n_breaths, n_lunges),
+    mutate_at(
+      vars(duration, n_breaths, n_lunges),
       ~ RcppRoll::roll_suml(.x, n = n_dives, fill = NA) / n_dives
     ) %>%
-    dplyr::filter((n_lunges == 0) | !nofeeding)
+    filter((n_lunges == 0) | !nofeeding)
 
   # Find breakpoint that minimizes combined RMSE (between median and 90th
   # percentile)

@@ -33,6 +33,8 @@ plot_dive_event(bm181021_dives, 200, 60)
 
 When an animal dives beyond its aerobic dive limit (ADL), we expect dives *shorter* than the ADL all have the same minimum recovery time and *longer* dives have an increasing minimum recovery time. For details, see Horning (2012).
 
+![Minimum post-dive recovery times show a steep increase beyond the aerobic dive limit (Horning 2012, Figure 3)](horning_2012_fig3.png)
+
 This whale shows the opposite trend, i.e. the minimum recovery time is increasing for dives shorter than the breakpoint and flat for longer. I think this means the animal is not approaching the ADL so we lack data on sufficiently long dives.
 
 ```{r}

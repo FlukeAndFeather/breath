@@ -11,20 +11,25 @@ read_deployment <- function(path, tz = "UTC") {
   ncdata <- RNetCDF::open.nc(path)
   dn <- RNetCDF::var.get.nc(ncdata, "DN")
   p <- RNetCDF::var.get.nc(ncdata, "P")
-  lunges <- RNetCDF::var.get.nc(ncdata, "Lunges")
+  lunges <- tryCatch(RNetCDF::var.get.nc(ncdata, "Lunges"),
+                     error = function(e) NULL)
   fs <- RNetCDF::att.get.nc(ncdata, "P", "sampling_rate")
 
   # Convert DN to POSIXct
   dt <- dn_to_posix(dn, tz)
 
   # Read lunges
-  lunge_dt <- as.POSIXct(lunges,
-                         tz = tz,
-                         origin = dt[1])
+  if (is.null(lunges)) {
+    lunge_dt <- NULL
+  } else {
+    lunge_dt <- as.POSIXct(lunges,
+                           tz = tz,
+                           origin = dt[1])
+  }
 
   # Return result
   list(
-    data = dplyr::tibble(dt, p),
+    data = tibble(dt, p),
     lunge_dt = lunge_dt,
     fs = fs
   )
@@ -43,7 +48,7 @@ decimate <- function(x, new_fs) {
     stop("new_fs is not a factor of original sampling frequency")
   }
 
-  x$data <- dplyr::slice(x$data, seq(1, nrow(x$data), by = old_fs / new_fs))
+  x$data <- slice(x$data, seq(1, nrow(x$data), by = old_fs / new_fs))
   x$fs <- new_fs
   x
 }

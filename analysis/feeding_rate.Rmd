@@ -1,0 +1,105 @@
+---
+title: "Feeding Rate Representation"
+author: "Max Czapanskiy"
+date: "2/4/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(breath)
+library(fs)
+library(lubridate)
+library(R.matlab)
+library(tidyverse)
+```
+
+```{r overall_rate}
+dur_days <- as.numeric(diff(range(bm181021_dives$data$dt)), unit = "days")
+n_lunges <- length(bm181021_dives$lunge_dt)
+overall_rate <- n_lunges / dur_days
+```
+
+How long is a "representative" deployment? bm181021 lunged 1,472 times during a 31.8 day deployment for an overall feeding rate of 46.4 lunges per day. How long do shorter deployments have to be to robustly predict that rate? We will sample "shorter" deployments of increasing lengths (1, 2, 3 hours etc) all starting at tagon to see when feeding rate stabilizes.
+```{r samples}
+step <- 3600 #s
+tagon <- first(bm181021_dives$data$dt)
+tagoff <- last(bm181021_dives$data$dt)
+dur <- as.numeric(tagoff - tagon, unit = "secs")
+lunge_secs <- as.numeric(bm181021_dives$lunge_dt - tagon, unit = "secs")
+bins <- tibble(dt = bm181021_dives$lunge_dt, secs = lunge_secs) %>% 
+  mutate(bin = floor(lunge_secs / step)) %>% 
+  group_by(bin) %>% 
+  summarize(n_lunges = n())
+all_bins <- tibble(bin = 1:floor(dur / step)) %>% 
+  left_join(bins, by = "bin") %>% 
+  replace_na(list(n_lunges = 0)) %>% 
+  mutate(cum_lunges = cumsum(n_lunges),
+         cum_rate_h = cum_lunges / bin,
+         cum_rate_day = cum_rate_h * 24)
+```
+
+bm181021 stopped feeding 9.2 days into its 31.8 duration (dotted line). This brings up an important question: what time period are we aggregating over? Is this the beginning of migration and therefore excluded? Or is this movement between patches that should be accounted for?
+
+```{r plot}
+last_lunge <- as.numeric(max(bm181021_dives$lunge_dt) - tagon, unit = "hours")
+ggplot(all_bins, aes(bin, cum_rate_day)) +
+  geom_line() + 
+  geom_vline(xintercept = last_lunge,
+             linetype = "dotted") +
+  labs(x = "Hours since tag on",
+       y = "Cumulative rate (lunges / day)") +
+  expand_limits(y = 0) +
+  theme_minimal(base_size = 16) +
+  theme(panel.grid.minor = element_blank())
+```
+
+How about more whales?
+
+```{r all_whales}
+tagguide <- readxl::read_excel("/Volumes/GoogleDrive/My Drive/CRCTagData/CRC_Tag_Summary.xlsx") %>% 
+  select(depid = `ID                                                 _`,
+         species = `Spec      _`,
+         utc = `UTC         _`, 
+         tagon_lcl = `Tag_On (Local)      _`,
+         tagoff_lcl = `Tag_Off                _`,
+         dur_days = `Data Length (days)`)
+lunge_files <- dir_ls("/Volumes/GoogleDrive/My Drive/CRCTagData/tag_data/",
+                      recurse = TRUE,
+                      regexp = "Bm[0-9]{6}-[A-Z]+[0-9]+ lunges.mat")
+
+bin_whale <- function(file_path, dur, tagon) {
+  lunge_dt <- dn_to_posix(R.matlab::readMat(file_path)$LungeDN)
+  lunge_secs <- as.numeric(lunge_dt - tagon, unit = "secs")
+  depid <- str_extract(file_path, "Bm[0-9]{6}-[A-Z]+[0-9]+")
+  step <- 3600 #s
+  bins <- tibble(dt = lunge_dt, secs = lunge_secs) %>% 
+    mutate(bin = floor(lunge_secs / step)) %>% 
+    group_by(bin) %>% 
+    summarize(n_lunges = n())
+  all_bins <- tibble(bin = 1:floor(dur / step)) %>% 
+    left_join(bins, by = "bin") %>% 
+    replace_na(list(n_lunges = 0)) %>% 
+    mutate(cum_lunges = cumsum(n_lunges),
+           cum_rate_h = cum_lunges / bin,
+           cum_rate_day = cum_rate_h * 24)
+}
+
+all_whales <- tibble(lunge_path = lunge_files) %>% 
+  mutate(depid = str_extract(lunge_path, "Bm[0-9]{6}-[A-Z]+[0-9]+")) %>% 
+  left_join(tagguide, by = "depid") %>%
+  drop_na()
+
+bins_all_whales <- all_whales %>% 
+  group_by(depid) %>% 
+  group_modify(~ bin_whale(.x$lunge_path, .x$dur_days * 24 * 3600, .x$tagon_lcl))
+
+ggplot(bins_all_whales, aes(bin, cum_rate_day, color = depid)) +
+  geom_line() + 
+  labs(x = "Hours since tag on",
+       y = "Cumulative rate (lunges / day)") +
+  expand_limits(y = 0) +
+  theme_minimal(base_size = 16) +
+  theme(legend.position = "none", 
+        panel.grid.minor = element_blank())
+```

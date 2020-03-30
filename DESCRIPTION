@@ -23,6 +23,7 @@ Imports:
     quantreg,
     RcppRoll,
     RNetCDF,
+    scales,
     tidyr
 Suggests: 
     testthat (>= 2.1.0)

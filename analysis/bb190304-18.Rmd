@@ -1,0 +1,79 @@
+---
+title: "Recovery cost of lunging (minke)"
+author: "Max Czapanskiy"
+date: "2/5/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,
+                      warning = FALSE)
+library(breath)
+library(tidyverse)
+```
+
+Read data from the new database and find breaths/dives
+
+```{r read_data}
+goldcon <- DBI::dbConnect(
+    RSQLite::SQLite(),
+    "/Volumes/COPYCATSdat/CATS/Database/gold.sqlite"
+  )
+depid <- "bb190304-18" 
+bb190304_18_data <- tbl(goldcon, "prh") %>% 
+  filter(depid == {{ depid }}) %>% 
+  select(dt0 = dt_lcl,
+         p = depth) %>% 
+  collect() %>% 
+  mutate(dt = as.POSIXct(dt0, tz = "Etc/GMT+3", origin = "1970-01-01")) %>% 
+  select(-dt0)
+bb190304_18_fs <- 10
+
+bb190304_18_1Hz <- list(
+  data = bb190304_18_data,
+  fs = bb190304_18_fs
+) %>% 
+  smooth_p(1) %>% 
+  decimate(1)
+
+bb190304_18_dives <- find_breaths_dives(
+  bb190304_18_1Hz,
+  interval = 10,
+  surface = 2,
+  ibi_thr = 300
+)
+```
+
+Plot a few dives (note: no lunges because I haven't imported them yet)
+```{r dives}
+summarize_dives(bb190304_18_dives)
+plot_dive_event(bb190304_18_dives, diveid = 2, buffer = 30)
+plot_dive_event(bb190304_18_dives, diveid = 5, buffer = 30)
+plot_dive_event(bb190304_18_dives, diveid = 10, buffer = 30)
+plot_dive_event(bb190304_18_dives, diveid = 15, buffer = 30)
+plot_dive_event(bb190304_18_dives, diveid = 20, buffer = 30)
+plot_dive_event(bb190304_18_dives, diveid = 25, buffer = 30)
+plot_dive_event(bb190304_18_dives, diveid = 30, buffer = 30)
+plot_dive_event(bb190304_18_dives, diveid = 35, buffer = 30)
+plot_dive_event(bb190304_18_dives, diveid = 40, buffer = 30)
+plot_dive_event(bb190304_18_dives, diveid = 43, buffer = 30)
+```
+
+From Mar 04 20:33 until the end of the deployment this animal was in a travel mode taking shallow, brief dives (none exceeding five minutes). What's the distribution of breathing rates in 15 minute intervals?
+
+```{r}
+travel_start <- ymd_hm("2019-03-04 20:33", tz = tz(bb190304_18_dives$data$dt))
+breathing_rate <- bb190304_18_dives$data %>% 
+  filter(dt >= travel_start) %>% 
+  mutate(interval = floor(as.numeric(dt - min(dt), units = "mins") / 15)) %>% 
+  group_by(interval) %>% 
+  summarize(n_breaths = sum(is_breath)) %>% 
+  ungroup() %>% 
+  slice(1:(nrow(.) - 1)) %>% 
+  mutate(breaths_hr = n_breaths * 4)
+ggplot(breathing_rate, aes(x = breaths_hr)) +
+  geom_histogram(binwidth = 10, boundary = 0, color = "black", fill = "white") +
+  labs(x = "Breaths per hour",
+       y = "Count of 15-min intervals") +
+  theme_minimal()
+```

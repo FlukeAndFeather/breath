@@ -1,0 +1,120 @@
+---
+title: "Minke breathing rates"
+output: html_notebook
+---
+
+```{r setup, message=FALSE}
+library(tidyverse)
+```
+
+```{r dep_with_nc}
+drive_path <- "/Volumes/GoogleDrive/Shared drives/CATS/"
+find_nc <- function(id, root) {
+  dep_dir <- fs::dir_ls(
+    fs::path(drive_path, "tag_data"),
+    regexp = sprintf("%s", id)
+  )
+  if (length(dep_dir) != 1) {
+    return(NA)
+  }
+  
+  result <- fs::dir_ls(dep_dir, regexp = sprintf(".*%s.*nc$", id))
+  if (length(result) != 1) {
+    return(NA)
+  } 
+  
+  result
+}
+bb_prh <- readxl::read_excel("prh_guide.xlsx", sheet = "bb") %>% 
+  mutate(
+    tz = sprintf("Etc/GMT%+d", -utc),
+    tag_on_utc = lubridate::force_tzs(tag_on, tzones = tz),
+    tag_off_utc = lubridate::force_tzs(tag_off, tzones = tz),
+    prh_path = map_chr(id, find_nc, root = drive_path)
+  ) 
+```
+
+22/27 deployments with NetCDF
+
+```{r dives}
+# Deployment metadata
+this_row <- filter(bb_prh, !is.na(prh_path)) %>% slice(1)
+this_id <- this_row$id
+this_path <- this_row$prh_path
+this_tz <- this_row$tz
+
+# Read data and truncate to tagon/tagoff
+this_deployment <- read_deployment(this_path, this_tz) %>%
+  smooth_p(1) %>%
+  decimate(1)
+this_deployment$data <- filter(
+  this_deployment$data, 
+  between(dt, this_row$tag_on_utc, this_row$tag_off_utc)
+)
+
+# Find dives
+this_dives <- find_breaths_dives(
+  this_deployment,
+  interval =  10,
+  surface = 2,
+  ibi_thr = 300
+)
+
+summarize_dives(this_dives)
+
+plot_dive_event(this_dives, 8, 60)
+```
+
+```{r breath_rate}
+this_dives$data %>% 
+  mutate(hour = floor(as.numeric(dt - min(dt), unit = "hours"))) %>% 
+  group_by(id = this_id,
+           hour) %>% 
+  summarize(n_breaths = sum(is_breath)) %>% 
+  ungroup() %>% 
+  head(-1)
+```
+
+Run it for everyone
+```{r}
+all_dives <- bb_prh %>% 
+  filter(!is.na(prh_path)) %>% 
+  group_by_all() %>% 
+  group_modify(function(data, keys) {
+    deployment <- read_deployment(keys$prh_path, keys$tz) %>%
+      smooth_p(1) %>%
+      decimate(1)
+    deployment$data <- filter(
+      deployment$data, 
+      between(dt, keys$tag_on_utc, keys$tag_off_utc)
+    )
+    find_breaths_dives(
+      deployment,
+      interval =  10,
+      surface = 2,
+      ibi_thr = 300
+    )$data
+  }) %>% 
+  ungroup()
+
+breath_rates <- all_dives %>% 
+  group_by(id) %>% 
+  mutate(hour = floor(as.numeric(dt - min(dt), unit = "hours"))) %>% 
+  group_by(id, hour) %>% 
+  summarize(n_breaths = sum(is_breath)) %>% 
+  ungroup() %>% 
+  group_by(id) %>% 
+  filter(hour < max(hour)) %>% 
+  ungroup() 
+
+med_rates <- breath_rates %>% 
+  group_by(id) %>% 
+  summarize(med_rate = median(n_breaths)) %>% 
+  ungroup() %>% 
+  arrange(med_rate)
+breath_rates %>% 
+  mutate(id = factor(id, levels = med_rates$id)) %>% 
+  ggplot(aes(id, n_breaths)) +
+  geom_boxplot() +
+  coord_flip()
+```

@@ -1,0 +1,149 @@
+---
+title: "Rorqual breathing rates"
+output: html_notebook
+---
+
+```{r setup, message=FALSE}
+library(tidyverse)
+```
+
+```{r dep_with_nc}
+drive_path <- "/Volumes/GoogleDrive/Shared drives/CATS/"
+find_nc <- function(id, root) {
+  dep_dir <- fs::dir_ls(
+    fs::path(drive_path, "tag_data"),
+    regexp = sprintf("%s", id)
+  )
+  if (length(dep_dir) != 1) {
+    return(NA)
+  }
+  
+  result <- fs::dir_ls(dep_dir, regexp = sprintf(".*%s.*nc$", id))
+  if (length(result) != 1) {
+    return(NA)
+  } 
+  
+  result
+}
+
+prh_guide <- c("bw", "bp", "mn", "bb") %>% 
+  map(~ readxl::read_excel("prh_guide.xlsx", sheet = .x)) %>% 
+  bind_rows() %>% 
+  mutate(
+    tz = sprintf("Etc/GMT%+d", -utc),
+    tag_on_utc = lubridate::force_tzs(tag_on, tzones = tz),
+    tag_off_utc = lubridate::force_tzs(tag_off, tzones = tz),
+    prh_path = map_chr(id, find_nc, root = drive_path)
+  ) 
+```
+
+`r sum(!is.na(prh_guide$prh_path))`/`r nrow(prh_guide)` deployments with NetCDF
+
+```{r all_breaths}
+all_dives <- prh_guide %>% 
+  filter(!is.na(prh_path)) %>% 
+  group_by_all() %>% 
+  group_modify(function(data, keys) {
+    tryCatch({
+      deployment <- read_deployment(keys$prh_path, keys$tz) %>%
+        smooth_p(1) %>%
+        decimate(1)
+      deployment$data <- filter(
+        deployment$data, 
+        between(dt, keys$tag_on_utc, keys$tag_off_utc)
+      )
+      find_breaths_dives(
+        deployment,
+        interval =  10,
+        surface = 2,
+        ibi_thr = 300
+      )$data
+    }, error = function(e) tibble())
+  }) %>% 
+  ungroup()
+
+breath_rates <- all_dives %>% 
+  group_by(id) %>% 
+  mutate(hour = floor(as.numeric(dt - min(dt), unit = "hours"))) %>% 
+  group_by(id, hour) %>% 
+  summarize(n_breaths = sum(is_breath)) %>% 
+  ungroup() %>% 
+  group_by(id) %>% 
+  filter(hour < max(hour)) %>% 
+  ungroup() 
+```
+
+```{r breaths_size}
+breath_rates %>% 
+  group_by(id) %>% 
+  summarize(mean_breaths = mean(n_breaths),
+            low_breaths = quantile(n_breaths, 0.25),
+            high_breaths = quantile(n_breaths, 0.75)) %>% 
+  ungroup() %>% 
+  left_join(prh_guide, by = "id") %>% 
+  drop_na(length) %>% 
+  ggplot(aes(length, mean_breaths, color = species)) +
+  geom_pointrange(aes(ymin = low_breaths, ymax = high_breaths)) +
+  theme_minimal()
+```
+
+```{r night_breaths}
+night_dives <- all_dives %>% 
+  mutate(sunangle = oce::sunAngle(dt, lon_on, lat_on)$altitude) %>% 
+  filter(sunangle < -18)
+
+fs <- 10
+power_law <- function(a, b) {
+  function(x) 10 ^ a * x ^ b
+}
+rorqual_allometry <- tribble(
+  ~ species, ~ mass_fun,
+  "bb",      power_law(1.009, 3.091),
+  "mn",      power_law(0.013, 4.000),
+  "bp",      power_law(1.087, 2.748),
+  "bw",      power_law(0.030, 3.539)
+)
+night_dives_morph <- night_dives %>% 
+  filter(!is.na(length)) %>% 
+  group_by(id, length, species) %>% 
+  summarize(night_rate = sum(is_breath) / n() * fs * 60) %>% 
+  ungroup() %>% 
+  left_join(rorqual_allometry, by = "species") %>% 
+  mutate(mass = map2_dbl(mass_fun, length, ~ .x(.y))) 
+
+allo_breathing <- tibble(
+  mass = seq(min(night_dives_morph$mass), max(night_dives_morph$mass), 1e3)
+) %>% 
+  mutate(f_aquatic = 33 * mass ^ -0.42,
+         f_terrestrial = 53.5 * mass ^ -0.26)
+
+night_dives_morph %>% 
+  ggplot(aes(log(mass), log(night_rate))) +
+  geom_point(aes(color = species)) +
+  geom_line(aes(y = log(f_aquatic)), allo_breathing, color = "blue") +
+  geom_line(aes(y = log(f_terrestrial)), allo_breathing, color = "red") +
+  labs(x = "log[Mass (kg)]",
+       y = "log[Breathing rate (breaths min-1)]") +
+  theme_minimal()
+```
+
+Rates seem very high. What does one night look like?
+
+```{r}
+one_night <- night_dives %>% 
+  filter(id == "bw170814-40") %>% 
+  mutate(chunk = floor(as.numeric(dt - min(dt), unit = "mins") / 30))
+one_night %>% 
+  group_by(chunk) %>% 
+  group_map(function(data, key) {
+    breaths <- data %>% 
+      filter(is_breath) %>% 
+      mutate(p = -0.5)
+    ggplot(data, aes(dt, p)) +
+      geom_line(size = 0.1) +
+      geom_point(data = breaths, shape = 25, fill = "blue") +
+      scale_y_reverse() +
+      theme_minimal()
+  })
+
+```

@@ -1,3 +1,6 @@
+#' @import dplyr
+#' @import ggplot2
+
 globalVariables(
   c(
     "dive_event",
