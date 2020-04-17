@@ -8,9 +8,11 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(cowplot)
+library(DT)
 library(glue)
 library(ncdf4)
 library(RcppRoll)
+library(shiny)
 library(tidyverse)
 ```
 
@@ -186,4 +188,18 @@ surf_idx <- sort(sample(unique(breaths$surface_idx), 5))
 walk(surf_idx, ~ print(plot_surface(.x)))
 ```
 
+## Shiny app
 
+```{r surface_plot echo = FALSE}
+
+renderPlot({
+  hist(faithful$eruptions, probability = TRUE,
+       breaks = as.numeric(input$n_breaks),
+       xlab = "Duration (minutes)",
+       main = "Geyser eruption duration")
+
+  dens <- density(faithful$eruptions, adjust = input$bw_adjust)
+  lines(dens, col = "blue")
+})
+
+```
