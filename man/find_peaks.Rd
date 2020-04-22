@@ -7,16 +7,16 @@
 find_peaks(x, width, prominence, idx_off = 0)
 }
 \arguments{
-\item{x}{\link{vector}}
+\item{x}{\verb{[vector]}}
 
-\item{width}{\link{vector(1)} width of search window}
+\item{width}{\verb{[vector(1)]} width of search window}
 
-\item{prominence}{\link{vector(1)} minimum prominence of peaks}
+\item{prominence}{\verb{[vector(1)]} minimum prominence of peaks}
 
-\item{idx_off}{\link{vector(1)} internal use only}
+\item{idx_off}{\verb{[vector(1)]} internal use only}
 }
 \value{
-\link{matrix(n, 2)} first column is peak index, second column is peak
+\verb{[matrix(n, 2)]} first column is peak index, second column is peak
 prominence. Ordered by prominence.
 }
 \description{

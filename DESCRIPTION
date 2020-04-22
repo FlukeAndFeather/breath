@@ -15,14 +15,20 @@ License: MIT + file LICENSE
 Depends: 
     R (>= 2.10)
 Imports: 
+    DBI,
     dplyr,
+    fs,
+    futile.logger,
     ggplot2,
+    glue,
     lubridate,
     magrittr,
+    ncdf4,
     purrr,
     quantreg,
     RcppRoll,
     RNetCDF,
+    RSQLite,
     scales,
     tidyr
 Suggests: 

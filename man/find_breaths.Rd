@@ -7,14 +7,14 @@
 find_breaths(prh, period, prominence, surf_thr)
 }
 \arguments{
-\item{prh}{\link{data.frame} with column p2 (smoothed depth)}
+\item{prh}{\verb{[data.frame]} with column p2 (smoothed depth)}
 
 \item{period}{minimum interval between breaths}
 
 \item{prominence}{minimum depth prominence of breath}
 }
 \value{
-\link{data.frame} prh filtered to breaths with surface_idx and row_idx
+\verb{[data.frame]} prh filtered to breaths with surface_idx and row_idx
 }
 \description{
 Breath classifier

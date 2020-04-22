@@ -7,12 +7,12 @@
 plot_surface(prh, surface_idx)
 }
 \arguments{
-\item{prh}{\link{data.frame} prh with breaths identified}
+\item{prh}{\verb{[data.frame]} prh with breaths identified}
 
-\item{surface_idx}{\link{integer(1)}}
+\item{surface_idx}{\verb{[integer(1)]}}
 }
 \value{
-\link{grob}
+\verb{[grob]}
 }
 \description{
 Plot breaths in a surface interval

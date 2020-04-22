@@ -1,11 +1,11 @@
 #' Robust peak finder
 #'
-#' @param x [vector]
-#' @param width [vector(1)] width of search window
-#' @param prominence [vector(1)] minimum prominence of peaks
-#' @param idx_off [vector(1)] internal use only
+#' @param x `[vector]`
+#' @param width `[vector(1)]` width of search window
+#' @param prominence `[vector(1)]` minimum prominence of peaks
+#' @param idx_off `[vector(1)]` internal use only
 #'
-#' @return [matrix(n, 2)] first column is peak index, second column is peak
+#' @return `[matrix(n, 2)]` first column is peak index, second column is peak
 #'   prominence. Ordered by prominence.
 #' @export
 #'
@@ -62,11 +62,11 @@ find_peaks <- function(x, width, prominence, idx_off = 0) {
 
 #' Breath classifier
 #'
-#' @param prh [data.frame] with column p2 (smoothed depth)
+#' @param prh `[data.frame]` with column p2 (smoothed depth)
 #' @param period minimum interval between breaths
 #' @param prominence minimum depth prominence of breath
 #'
-#' @return [data.frame] prh filtered to breaths with surface_idx and row_idx
+#' @return `[data.frame]` prh filtered to breaths with surface_idx and row_idx
 #' @export
 #'
 #' @examples
@@ -119,10 +119,10 @@ find_breaths <- function(prh, period, prominence, surf_thr) {
 
 #' Plot breaths in a surface interval
 #'
-#' @param prh [data.frame] prh with breaths identified
-#' @param surface_idx [integer(1)]
+#' @param prh `[data.frame]` prh with breaths identified
+#' @param surface_idx `[integer(1)]`
 #'
-#' @return [grob]
+#' @return `[grob]`
 #' @export
 #'
 #' @examples

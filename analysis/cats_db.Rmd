@@ -117,11 +117,11 @@ read_prh_nc <- function(depid) {
 
 # PRH metadata accessors
 get_fs <- function(prh) {
-  stopifnot("prh" %in% class(prh))
+  stopifnot(is_prh(prh))
   attr(prh, "metadata")$fs
 }
 get_depid <- function(prh) {
-  stopifnot("prh" %in% class(prh))
+  stopifnot(is_prh(prh))
   attr(prh, "metadata")$depid
 }
 
